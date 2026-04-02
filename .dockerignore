@@ -1,0 +1,10 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.python-version
+uv.lock
+README.md
+docker-compose.yaml
+.dockerignore
