@@ -1,0 +1,18 @@
+[project]
+name = "mcps-reddit"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "local-playwright",
+    "fastmcp==3.0.0b2",
+    "pydash>=8.0.6"
+]
+
+[tool.setuptools.package-dir]
+local_mcps_reddit = "./src"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
