@@ -1,0 +1,17 @@
+[project]
+name = "mcps-hackernews"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastmcp>=3.0.0b2",
+    "playwright>=1.58.0",
+]
+
+[tool.setuptools.package-dir]
+mcps_hackernews = "./src"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

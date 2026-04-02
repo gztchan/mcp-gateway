@@ -1,0 +1,30 @@
+[project]
+name = "gateway"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # "local-mcps-reddit",
+    # "local-mcps-twitter",
+#    "local-mcps-polymarket",
+    "fastmcp==3.0.0b2",
+    "pydash>=8.0.6",
+    "python-dotenv[cli]>=1.2.2",
+]
+
+[tool.poetry.requires-plugins]
+poethepoet = ">=0.41.0"
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.41.0",
+]
+
+[tool.poe.tasks.dev]
+cmd = "nodemon --exec uv sync --all-packages --no-editable --reinstall && dotenv -f .env run python -m src.main"
+env = { ENV = "development" }
+
+[tool.poe.tasks.deploy]
+cmd = "dotenv -f .env run python -m src.main"
+env = { ENV = "development" }
