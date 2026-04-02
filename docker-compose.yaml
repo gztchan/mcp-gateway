@@ -1,0 +1,13 @@
+services:
+  mcp-proxy:
+    build: .
+    ports:
+      - "9090:9090"
+    # volumes:
+      # 挂载 config，便于宿主机修改 MCP 配置
+      # - ./config.json:/app/config.json:ro
+      # 挂载工作区，供 filesystem MCP 使用（路径需与 config 中一致）
+      # - ./workspace:/home/convoy/workspace:ro
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped

@@ -1,0 +1,52 @@
+[project]
+name = "mcp-gateway"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+]
+
+[tool.poetry.requires-plugins]
+poethepoet = ">=0.41.0"
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.41.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "gateway",
+    # "mcps/reddit",
+    # "mcps/twitter",
+    #    "mcps/polymarket",
+    "mcps/hackernews",
+        # "packages/*",
+]
+
+[tool.uv.sources]
+gateway = { workspace = true }
+# local-playwright = { workspace = true }
+#local-mcps-polymarket = { workspace = true }
+# local-mcps-reddit = { workspace = true }
+# mcps-twitter = { workspace = true }
+mcps-hackernews = { workspace = true }
+
+[tool.poe.tasks.dev]
+cwd = "gateway"
+cmd = "uv run poe dev"
+env = { ENV = "development" }
+
+[tool.poe.tasks.deploy]
+cwd = "gateway"
+cmd = "uv run poe deploy"
