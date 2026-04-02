@@ -1,0 +1,22 @@
+[project]
+name = "polymarket-mcp"
+version = "0.1.0"
+description = "Polymarket MCP tools for Gamma, Data, and CLOB APIs"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp==3.0.0b2",
+    "py-clob-client>=0.34.6",
+    "pydash>=8.0.6",
+    "requests>=2.32.3",
+]
+
+[tool.setuptools.package-dir]
+polymarket_mcp = "./src"
+
+[project.scripts]
+polymarket = "polymarket_mcp.src:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
