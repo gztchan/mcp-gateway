@@ -1,0 +1,158 @@
+name: Build mcp-gateway
+
+on:
+  push:
+    tags: [
+      v*.*.*-production.*, v*.*.*-alpha.*
+    ]
+
+env:
+  NAMESPACE: convoy
+  REGISTRY: ${{ vars.HARBOR_REGISTRY }}
+  IMAGE_NAME: mcp-gateway
+  HARBOR_USERNAME: ${{ vars.HARBOR_USERNAME }}
+  HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+  HARBOR_ROBOT_NAME: ${{ vars.HARBOR_ROBOT_NAME }}
+  HARBOR_ROBOT_TOKEN: ${{ secrets.HARBOR_ROBOT_TOKEN }}
+  DOCKERFILE_PATH: ./Dockerfile
+  DISCORD_AVATAR: "https://cdn.jsdelivr.net/gh/selfhst/icons/webp/github-light.webp"
+  DISCORD_USERNAME: "GitHub Workflow"
+  DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1420808233114665201/FavWbpr7OvRApvn3L7rLpSgbRi5k4pFfVjS1mOAGgmParrxazBlcftaJeTI4Pyu9Lmc3"
+
+jobs:
+  build_image:
+    runs-on: [ubuntu-latest]
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v5
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.HARBOR_ROBOT_NAME }}
+          password: ${{ env.HARBOR_ROBOT_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  build_chart:
+    runs-on: [ubuntu-latest]
+    needs: build_image
+    if: success()
+    strategy:
+      matrix:
+        chart_name: [mcp-gateway]
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v5
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Login Helm
+        uses: central-x/helm-login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.HARBOR_USERNAME }}
+          password: ${{ env.HARBOR_PASSWORD }}
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Lint Helm chart
+        run: helm lint charts/${{ matrix.chart_name }}/
+
+      - name: Package and push chart
+        run: |
+          sed -i.bak 's/tag: "<placeholder>"/tag: "${{ steps.version.outputs.version }}"/' charts/${{ matrix.chart_name }}/values.yaml &&
+          helm package charts/${{ matrix.chart_name }}/ --destination /tmp/chart --version ${{ steps.version.outputs.version }} && helm push /tmp/chart/${{ matrix.chart_name }}-${{ steps.version.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.NAMESPACE }}-charts
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build_image]
+    if: success()
+    steps:
+      - name: Prepare notification message
+        id: message
+        run: |
+          STATUS="✅ Success"
+          if [[ "${{ needs.build_image.result }}" != "success" ]]; then
+            STATUS="❌ Failed"
+          fi
+
+          ENVIRONMENT="production"
+
+          MESSAGE="**Release** ${STATUS}
+
+          **Environment:** ${ENVIRONMENT}
+          **Version:** ${GITHUB_REF_NAME}
+          **Commit:** ${GITHUB_SHA::7}
+          **Image:** ${{ needs.build_image.outputs.image }}
+
+          **Jobs Status:**
+          - Build Image: ${{ needs.build_image.result }}
+
+          **Actions URL:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Discord notification
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_AVATAR: ${{ env.DISCORD_AVATAR }}
+          DISCORD_USERNAME: ${{ env.DISCORD_USERNAME }}
+          DISCORD_WEBHOOK: ${{ env.DISCORD_WEBHOOK }}
+        with:
+          args: ${{ steps.message.outputs.message }}
+
+  failure:
+    runs-on: ubuntu-latest
+    needs: [build_image]
+    if: failure() && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+    steps:
+      - name: Send failure notification
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_AVATAR: ${{ env.DISCORD_AVATAR }}
+          DISCORD_USERNAME: ${{ env.DISCORD_USERNAME }}
+          DISCORD_WEBHOOK: ${{ env.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🚨 **ERROR** 🚨
+
+            **Commit:** ${GITHUB_SHA::7}
+            **Branch:** ${GITHUB_REF_NAME}
+            **Actions URL:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
